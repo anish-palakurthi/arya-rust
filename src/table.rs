@@ -142,7 +142,13 @@ impl Storage<DbVal> for Table {
     type Ref<'a> = DbRef<'a>;
 
     fn get<'a>(&'a self, id: (RowId, ColId)) -> Option<DbRef<'a>> {
-        unimplemented!()
+        let (row, col) = id;
+        match col.ty {
+            DbType::String => self.strings[col.idx].get(row).map(DbRef::String),
+            DbType::Integer => self.integers[col.idx].get(row).map(DbRef::Integer),
+            DbType::Boolean => self.booleans[col.idx].get(row).map(DbRef::Boolean),
+            DbType::Double => self.doubles[col.idx].get(row).map(DbRef::Double),
+        }
     }
 }
 
@@ -150,15 +156,42 @@ impl StorageMut<DbVal> for Table {
     type RefMut<'a> = DbMut<'a>;
 
     fn get_mut<'a>(&'a mut self, id: (RowId, ColId)) -> Option<DbMut<'a>> {
-        unimplemented!()
+        let (row, col) = id;
+        match col.ty {
+            DbType::String => self.strings[col.idx].get_mut(row).map(DbMut::String),
+            DbType::Integer => self.integers[col.idx].get_mut(row).map(DbMut::Integer),
+            DbType::Boolean => self.booleans[col.idx].get_mut(row).map(DbMut::Boolean),
+            DbType::Double => self.doubles[col.idx].get_mut(row).map(DbMut::Double),
+        }
     }
 
     fn put(&mut self, id: (RowId, ColId), val: impl Into<DbVal>) -> Option<DbVal> {
-        unimplemented!()
+        let (row, col) = id;
+        match (col.ty, val.into()) {
+            (DbType::String, DbVal::String(v)) => {
+                self.strings[col.idx].put(row, v).map(DbVal::String)
+            }
+            (DbType::Integer, DbVal::Integer(v)) => {
+                self.integers[col.idx].put(row, v).map(DbVal::Integer)
+            }
+            (DbType::Boolean, DbVal::Boolean(v)) => {
+                self.booleans[col.idx].put(row, v).map(DbVal::Boolean)
+            }
+            (DbType::Double, DbVal::Double(v)) => {
+                self.doubles[col.idx].put(row, v).map(DbVal::Double)
+            }
+            _ => panic!("type mismatch when putting database value"),
+        }
     }
 
     fn take(&mut self, id: (RowId, ColId)) -> Option<DbVal> {
-        unimplemented!()
+        let (row, col) = id;
+        match col.ty {
+            DbType::String => self.strings[col.idx].take(row).map(DbVal::String),
+            DbType::Integer => self.integers[col.idx].take(row).map(DbVal::Integer),
+            DbType::Boolean => self.booleans[col.idx].take(row).map(DbVal::Boolean),
+            DbType::Double => self.doubles[col.idx].take(row).map(DbVal::Double),
+        }
     }
 }
 

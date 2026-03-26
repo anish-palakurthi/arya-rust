@@ -141,7 +141,7 @@ impl<'a> Storage<DbVal> for RowRef<'a> {
         Self: 'b;
 
     fn get<'b>(&'b self, id: Self::Id) -> Option<Self::Ref<'b>> {
-        unimplemented!();
+        self.table.get((self.id, id))
     }
 }
 
@@ -154,7 +154,7 @@ impl<'a> Storage<DbVal> for RowMut<'a> {
         Self: 'b;
 
     fn get<'b>(&'b self, id: Self::Id) -> Option<Self::Ref<'b>> {
-        unimplemented!();
+        self.table.get((self.id, id))
     }
 }
 
@@ -165,15 +165,15 @@ impl<'a> StorageMut<DbVal> for RowMut<'a> {
         Self: 'b;
 
     fn get_mut<'b>(&'b mut self, id: Self::Id) -> Option<Self::RefMut<'b>> {
-        unimplemented!();
+        self.table.get_mut((self.id, id))
     }
 
     fn put(&mut self, id: Self::Id, val: impl Into<DbVal>) -> Option<DbVal> {
-        unimplemented!();
+        self.table.put((self.id, id), val)
     }
 
     fn take(&mut self, id: Self::Id) -> Option<DbVal> {
-        unimplemented!();
+        self.table.take((self.id, id))
     }
 }
 
@@ -185,7 +185,12 @@ impl<'a> Storage<DbVal> for ColRef<'a> {
         Self: 'b;
 
     fn get<'b>(&'b self, row_id: RowId) -> Option<Self::Ref<'b>> {
-        unimplemented!()
+        match self {
+            ColRef::String(col) => col.get(row_id).map(DbRef::String),
+            ColRef::Integer(col) => col.get(row_id).map(DbRef::Integer),
+            ColRef::Boolean(col) => col.get(row_id).map(DbRef::Boolean),
+            ColRef::Double(col) => col.get(row_id).map(DbRef::Double),
+        }
     }
 }
 
@@ -197,7 +202,12 @@ impl<'a> Storage<DbVal> for ColMut<'a> {
         Self: 'b;
 
     fn get<'b>(&'b self, row_id: RowId) -> Option<Self::Ref<'b>> {
-        unimplemented!()
+        match self {
+            ColMut::String(col) => col.get(row_id).map(DbRef::String),
+            ColMut::Integer(col) => col.get(row_id).map(DbRef::Integer),
+            ColMut::Boolean(col) => col.get(row_id).map(DbRef::Boolean),
+            ColMut::Double(col) => col.get(row_id).map(DbRef::Double),
+        }
     }
 }
 
@@ -208,17 +218,33 @@ impl<'a> StorageMut<DbVal> for ColMut<'a> {
         Self: 'b;
 
     fn get_mut<'b>(&'b mut self, row_id: RowId) -> Option<Self::RefMut<'b>> {
-        unimplemented!()
+        match self {
+            ColMut::String(col) => col.get_mut(row_id).map(DbMut::String),
+            ColMut::Integer(col) => col.get_mut(row_id).map(DbMut::Integer),
+            ColMut::Boolean(col) => col.get_mut(row_id).map(DbMut::Boolean),
+            ColMut::Double(col) => col.get_mut(row_id).map(DbMut::Double),
+        }
     }
 
     fn put(&mut self, row_id: RowId, val: impl Into<DbVal>) -> Option<DbVal> {
         // Note: you will need to do a runtime type check here. If the caller provides the
         // wrong type, simply `panic!()` with an appropriate error message. A useful idiom is to
         // pattern-match on the tuple `(self, val.into())` and use the "fallback" case `_ => {...}`.
-        unimplemented!()
+        match (self, val.into()) {
+            (ColMut::String(col), DbVal::String(v)) => col.put(row_id, v).map(DbVal::String),
+            (ColMut::Integer(col), DbVal::Integer(v)) => col.put(row_id, v).map(DbVal::Integer),
+            (ColMut::Boolean(col), DbVal::Boolean(v)) => col.put(row_id, v).map(DbVal::Boolean),
+            (ColMut::Double(col), DbVal::Double(v)) => col.put(row_id, v).map(DbVal::Double),
+            _ => panic!("type mismatch when putting database value"),
+        }
     }
 
     fn take(&mut self, row_id: RowId) -> Option<DbVal> {
-        unimplemented!()
+        match self {
+            ColMut::String(col) => col.take(row_id).map(DbVal::String),
+            ColMut::Integer(col) => col.take(row_id).map(DbVal::Integer),
+            ColMut::Boolean(col) => col.take(row_id).map(DbVal::Boolean),
+            ColMut::Double(col) => col.take(row_id).map(DbVal::Double),
+        }
     }
 }

@@ -142,7 +142,41 @@ impl Filter {
 impl Filter {
     /// Returns `true` if the data should be kept and `false` if it should be filtered.
     pub fn apply<'a>(&'a self, row: RowRef<'a>) -> bool {
-        unimplemented!();
+        fn cmp_nullable(lhs: Option<DbVal>, rhs: Option<DbVal>) -> Option<Ordering> {
+            match (lhs, rhs) {
+                (None, None) => Some(Ordering::Equal),
+                (None, Some(_)) => Some(Ordering::Less),
+                (Some(_), None) => Some(Ordering::Greater),
+                (Some(DbVal::String(a)), Some(DbVal::String(b))) => Some(a.cmp(&b)),
+                (Some(DbVal::Integer(a)), Some(DbVal::Integer(b))) => Some(a.cmp(&b)),
+                (Some(DbVal::Boolean(a)), Some(DbVal::Boolean(b))) => Some(a.cmp(&b)),
+                (Some(DbVal::Double(a)), Some(DbVal::Double(b))) => a.partial_cmp(&b),
+                _ => None,
+            }
+        }
+
+        let get_col = |col_id: ColId| row.get(col_id).map(|v| v.to_owned());
+
+        match self {
+            Filter::IsNull(col) => get_col(*col).is_none(),
+            Filter::IsNonNull(col) => get_col(*col).is_some(),
+            Filter::Eq(col, val) => cmp_nullable(get_col(*col), Some(val.clone()))
+                .is_some_and(|ord| ord == Ordering::Equal),
+            Filter::Ne(col, val) => cmp_nullable(get_col(*col), Some(val.clone()))
+                .is_some_and(|ord| ord != Ordering::Equal),
+            Filter::Gt(col, val) => cmp_nullable(get_col(*col), Some(val.clone()))
+                .is_some_and(|ord| ord == Ordering::Greater),
+            Filter::Lt(col, val) => cmp_nullable(get_col(*col), Some(val.clone()))
+                .is_some_and(|ord| ord == Ordering::Less),
+            Filter::Ge(col, val) => cmp_nullable(get_col(*col), Some(val.clone()))
+                .is_some_and(|ord| ord == Ordering::Greater || ord == Ordering::Equal),
+            Filter::Le(col, val) => cmp_nullable(get_col(*col), Some(val.clone()))
+                .is_some_and(|ord| ord == Ordering::Less || ord == Ordering::Equal),
+            Filter::And(a, b) => a.apply(row) && b.apply(row),
+            Filter::Or(a, b) => a.apply(row) || b.apply(row),
+            Filter::Xor(a, b) => a.apply(row) ^ b.apply(row),
+            Filter::Not(inner) => !inner.apply(row),
+        }
     }
 }
 
@@ -170,7 +204,42 @@ pub struct TableViewMut<'a> {
 
 impl Table {
     pub fn select_helper(&self, select: Select) -> (Vec<ColId>, Vec<RowId>) {
-        unimplemented!();
+        let mut row_ids: Vec<RowId> = self
+            .iter_row_ids()
+            .filter(|&row_id| {
+                let row = self.row(row_id);
+                select
+                    .filter
+                    .as_ref()
+                    .is_none_or(|filter| filter.apply(row))
+            })
+            .collect();
+
+        for order_by in select.order_by.iter().rev() {
+            row_ids.sort_by(|a, b| {
+                let av = self.get((*a, order_by.col)).map(|v| v.to_owned());
+                let bv = self.get((*b, order_by.col)).map(|v| v.to_owned());
+                let ord = match (av, bv) {
+                    (None, None) => Ordering::Equal,
+                    (None, Some(_)) => Ordering::Less,
+                    (Some(_), None) => Ordering::Greater,
+                    (Some(DbVal::String(x)), Some(DbVal::String(y))) => x.cmp(&y),
+                    (Some(DbVal::Integer(x)), Some(DbVal::Integer(y))) => x.cmp(&y),
+                    (Some(DbVal::Boolean(x)), Some(DbVal::Boolean(y))) => x.cmp(&y),
+                    (Some(DbVal::Double(x)), Some(DbVal::Double(y))) => {
+                        x.partial_cmp(&y).unwrap_or(Ordering::Equal)
+                    }
+                    _ => panic!("type mismatch when ordering select query"),
+                };
+                if order_by.order == Order::Ascending {
+                    ord
+                } else {
+                    ord.reverse()
+                }
+            });
+        }
+
+        (select.cols, row_ids)
     }
     pub fn select<'a>(&'a self, select: Select) -> TableView<'a> {
         let (col_ids, row_ids) = self.select_helper(select);
@@ -194,29 +263,26 @@ impl Table {
 
 impl<'a> TableIter for TableView<'a> {
     fn iter_rows<'b>(&'b self) -> impl Iterator<Item = RowRef<'b>> {
-        unimplemented!();
-        std::iter::empty()
+        self.row_ids.iter().copied().map(|id| self.table.row(id))
     }
     fn iter_cols<'b>(&'b self) -> impl Iterator<Item = view::ColRef<'b>> {
-        unimplemented!();
-        std::iter::empty()
+        self.col_ids.iter().copied().map(|id| self.table.col(id))
     }
 }
 impl<'a> TableIter for TableViewMut<'a> {
     fn iter_rows<'b>(&'b self) -> impl Iterator<Item = RowRef<'b>> {
-        unimplemented!();
-        std::iter::empty()
+        self.row_ids.iter().copied().map(|id| self.table.row(id))
     }
     fn iter_cols<'b>(&'b self) -> impl Iterator<Item = view::ColRef<'b>> {
-        unimplemented!();
-        std::iter::empty()
+        self.col_ids.iter().copied().map(|id| self.table.col(id))
     }
 }
 
 impl<'a> TableIterMut for TableViewMut<'a> {
     fn iter_cols_mut<'b>(&'b mut self) -> impl Iterator<Item = view::ColMut<'b>> {
-        unimplemented!();
-        std::iter::empty()
+        self.table
+            .iter_cols_mut()
+            .filter(|col| self.col_ids.contains(&col.id()))
     }
 }
 

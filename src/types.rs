@@ -54,15 +54,19 @@ pub enum DbVal {
 /// A reference to a database value with lifetime `'a`.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DbRef<'a> {
-    // TODO: implement (delete the variant below!)
-    DeleteMe(&'a ()),
+    String(&'a String),
+    Integer(&'a i64),
+    Boolean(&'a bool),
+    Double(&'a f64),
 }
 
 /// A reference to a database value with lifetime `'a`.
 #[derive(Debug, PartialEq)]
 pub enum DbMut<'a> {
-    // TODO: implement (delete the variant below!)
-    DeleteMe(&'a ()),
+    String(&'a mut String),
+    Integer(&'a mut i64),
+    Boolean(&'a mut bool),
+    Double(&'a mut f64),
 }
 
 // STEP 2: Implement the `as_ref`, `as_mut`, and `to_owned` functions. The behavior of these
@@ -85,26 +89,46 @@ pub enum DbMut<'a> {
 impl DbVal {
     /// Converts this database value into a reference.
     pub fn as_ref<'a>(&'a self) -> DbRef<'a> {
-        unimplemented!()
+        match self {
+            DbVal::String(v) => DbRef::String(v),
+            DbVal::Integer(v) => DbRef::Integer(v),
+            DbVal::Boolean(v) => DbRef::Boolean(v),
+            DbVal::Double(v) => DbRef::Double(v),
+        }
     }
 
     /// Converts this database value into a mutable reference.
     pub fn as_mut<'a>(&'a mut self) -> DbMut<'a> {
-        unimplemented!()
+        match self {
+            DbVal::String(v) => DbMut::String(v),
+            DbVal::Integer(v) => DbMut::Integer(v),
+            DbVal::Boolean(v) => DbMut::Boolean(v),
+            DbVal::Double(v) => DbMut::Double(v),
+        }
     }
 }
 
 impl<'a> DbRef<'a> {
     /// Converts this reference type into a new, owned database value.
     pub fn to_owned(&self) -> DbVal {
-        unimplemented!()
+        match self {
+            DbRef::String(v) => DbVal::String((*v).to_owned()),
+            DbRef::Integer(v) => DbVal::Integer(**v),
+            DbRef::Boolean(v) => DbVal::Boolean(**v),
+            DbRef::Double(v) => DbVal::Double(**v),
+        }
     }
 }
 
 impl<'a> DbMut<'a> {
     /// Converts this reference type into a new, owned (independent!) database value.
     pub fn to_owned(&self) -> DbVal {
-        unimplemented!()
+        match self {
+            DbMut::String(v) => DbVal::String((**v).to_owned()),
+            DbMut::Integer(v) => DbVal::Integer(**v),
+            DbMut::Boolean(v) => DbVal::Boolean(**v),
+            DbMut::Double(v) => DbVal::Double(**v),
+        }
     }
 }
 
@@ -140,43 +164,43 @@ impl From<f64> for DbVal {
 
 impl<'a> From<&'a String> for DbRef<'a> {
     fn from(value: &'a String) -> Self {
-        unimplemented!()
+        DbRef::String(value)
     }
 }
 impl<'a> From<&'a i64> for DbRef<'a> {
     fn from(value: &'a i64) -> Self {
-        unimplemented!()
+        DbRef::Integer(value)
     }
 }
 impl<'a> From<&'a bool> for DbRef<'a> {
     fn from(value: &'a bool) -> Self {
-        unimplemented!()
+        DbRef::Boolean(value)
     }
 }
 impl<'a> From<&'a f64> for DbRef<'a> {
     fn from(value: &'a f64) -> Self {
-        unimplemented!()
+        DbRef::Double(value)
     }
 }
 
 impl<'a> From<&'a mut String> for DbMut<'a> {
     fn from(value: &'a mut String) -> Self {
-        unimplemented!()
+        DbMut::String(value)
     }
 }
 impl<'a> From<&'a mut i64> for DbMut<'a> {
     fn from(value: &'a mut i64) -> Self {
-        unimplemented!()
+        DbMut::Integer(value)
     }
 }
 impl<'a> From<&'a mut bool> for DbMut<'a> {
     fn from(value: &'a mut bool) -> Self {
-        unimplemented!()
+        DbMut::Boolean(value)
     }
 }
 impl<'a> From<&'a mut f64> for DbMut<'a> {
     fn from(value: &'a mut f64) -> Self {
-        unimplemented!()
+        DbMut::Double(value)
     }
 }
 

@@ -92,34 +92,53 @@ impl<T: Default> Col<T> {
 // HINT: Don't overcomplicate the reference type! Remember this is for a generic `T`, not `DbVal`.
 
 impl<T> Storage<T> for Col<T> {
-    // TODO: specify associated types
-    type Id = ();
+    type Id = RowId;
     type Ref<'a>
-        = ()
+        = &'a T
     where
         Self: 'a;
 
-    fn get(&self, id: ()) -> Option<()> {
-        unimplemented!()
+    fn get(&self, id: RowId) -> Option<&T> {
+        self.occupied
+            .get(id.idx)
+            .filter(|occupied| *occupied)
+            .and_then(|_| self.data.get(id.idx))
     }
 }
 
-impl<T> StorageMut<T> for Col<T> {
-    // TODO: specify associated types
+impl<T: Default> StorageMut<T> for Col<T> {
     type RefMut<'a>
-        = ()
+        = &'a mut T
     where
         Self: 'a;
 
-    fn get_mut(&mut self, id: ()) -> Option<()> {
-        unimplemented!()
+    fn get_mut(&mut self, id: RowId) -> Option<&mut T> {
+        if self.occupied.get(id.idx).unwrap_or(false) {
+            self.data.get_mut(id.idx)
+        } else {
+            None
+        }
     }
 
-    fn put(&mut self, id: (), val: impl Into<T>) -> Option<T> {
-        unimplemented!()
+    fn put(&mut self, id: RowId, val: impl Into<T>) -> Option<T> {
+        self.extend_with_null(id.idx);
+        let had_value = self.occupied.get(id.idx).unwrap_or(false);
+        let new_val = val.into();
+        self.occupied.set(id.idx, true);
+        let slot = &mut self.data[id.idx];
+        if had_value {
+            Some(std::mem::replace(slot, new_val))
+        } else {
+            *slot = new_val;
+            None
+        }
     }
 
-    fn take(&mut self, id: ()) -> Option<T> {
-        unimplemented!()
+    fn take(&mut self, id: RowId) -> Option<T> {
+        if !self.occupied.get(id.idx).unwrap_or(false) {
+            return None;
+        }
+        self.occupied.set(id.idx, false);
+        self.data.get_mut(id.idx).map(std::mem::take)
     }
 }

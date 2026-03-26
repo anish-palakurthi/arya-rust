@@ -61,19 +61,24 @@ pub trait TableIterMut: TableIter {
 
 impl TableIter for Table {
     fn iter_rows<'a>(&'a self) -> impl Iterator<Item = RowRef<'a>> {
-        unimplemented!();
-        std::iter::empty()
+        (0..self.num_rows()).map(|idx| RowRef {
+            table: self,
+            id: RowId { idx },
+        })
     }
     fn iter_cols<'a>(&'a self) -> impl Iterator<Item = ColRef<'a>> {
-        unimplemented!();
-        std::iter::empty()
+        let col_ids: Vec<ColId> = self.id_map.values().copied().collect();
+        col_ids.into_iter().map(|id| self.col(id))
     }
 }
 
 impl TableIterMut for Table {
     fn iter_cols_mut<'a>(&'a mut self) -> impl Iterator<Item = ColMut<'a>> {
-        unimplemented!();
-        std::iter::empty()
+        let strings = self.strings.iter_mut().map(ColMut::String);
+        let integers = self.integers.iter_mut().map(ColMut::Integer);
+        let booleans = self.booleans.iter_mut().map(ColMut::Boolean);
+        let doubles = self.doubles.iter_mut().map(ColMut::Double);
+        strings.chain(integers).chain(booleans).chain(doubles)
     }
 }
 
@@ -84,28 +89,47 @@ impl TableIterMut for Table {
 
 impl<'a> RowRef<'a> {
     pub fn iter(&'a self) -> impl Iterator<Item = (ColRef<'a>, Option<DbRef<'a>>)> {
-        unimplemented!();
-        std::iter::empty()
+        self.table.iter_cols().map(|col| {
+            let val = self.table.get((self.id, col.id()));
+            (col, val)
+        })
     }
 }
 impl<'a> RowMut<'a> {
     pub fn iter(&'a self) -> impl Iterator<Item = (ColRef<'a>, Option<DbRef<'a>>)> {
-        unimplemented!();
-        std::iter::empty()
+        self.table.iter_cols().map(|col| {
+            let val = self.table.get((self.id, col.id()));
+            (col, val)
+        })
     }
 }
 
 impl<'a> ColRef<'a> {
     pub fn iter(&'a self) -> Box<dyn Iterator<Item = Option<DbRef<'a>>> + 'a> {
-        unimplemented!()
+        match self {
+            ColRef::String(col) => Box::new(col.iter().map(|v| v.map(DbRef::String))),
+            ColRef::Integer(col) => Box::new(col.iter().map(|v| v.map(DbRef::Integer))),
+            ColRef::Boolean(col) => Box::new(col.iter().map(|v| v.map(DbRef::Boolean))),
+            ColRef::Double(col) => Box::new(col.iter().map(|v| v.map(DbRef::Double))),
+        }
     }
 }
 impl<'a> ColMut<'a> {
     pub fn iter(&'a self) -> Box<dyn Iterator<Item = Option<DbRef<'a>>> + 'a> {
-        unimplemented!()
+        match self {
+            ColMut::String(col) => Box::new(col.iter().map(|v| v.map(DbRef::String))),
+            ColMut::Integer(col) => Box::new(col.iter().map(|v| v.map(DbRef::Integer))),
+            ColMut::Boolean(col) => Box::new(col.iter().map(|v| v.map(DbRef::Boolean))),
+            ColMut::Double(col) => Box::new(col.iter().map(|v| v.map(DbRef::Double))),
+        }
     }
 
     pub fn iter_mut(&'a mut self) -> Box<dyn Iterator<Item = Option<DbMut<'a>>> + 'a> {
-        unimplemented!()
+        match self {
+            ColMut::String(col) => Box::new(col.iter_mut().map(|v| v.map(DbMut::String))),
+            ColMut::Integer(col) => Box::new(col.iter_mut().map(|v| v.map(DbMut::Integer))),
+            ColMut::Boolean(col) => Box::new(col.iter_mut().map(|v| v.map(DbMut::Boolean))),
+            ColMut::Double(col) => Box::new(col.iter_mut().map(|v| v.map(DbMut::Double))),
+        }
     }
 }
