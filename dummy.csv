@@ -1,0 +1,8 @@
+product_id,name,category,price,in_stock,rating
+P001,"Wireless Mouse","Electronics",24.99,true,4.5
+P002,"Coffee Mug","Kitchen",12.50,true,4.8
+P003,"Blue T-Shirt","Clothing",19.99,false,3.2
+P004,"Notebook 13""","Office",899.00,true,4.7
+P005,"Chocolate Bar","Food",2.49,true,5.0
+P006,"Headphones","Electronics",79.99,false,4.1
+P007,,,"",false,
